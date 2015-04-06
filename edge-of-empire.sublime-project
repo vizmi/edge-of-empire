@@ -1,0 +1,17 @@
+{
+	"folders": [{
+		"path": "/",
+		"folder_exclude_patterns": ["node_modules", ".cache"]
+	}],
+	"settings": {
+		// project specific settings
+	},
+	"build_systems": [{
+		"name": "build",
+		"shell_cmd": "npm run build"
+	},{
+		"name": "start server",
+		"shell_cmd": "npm run start"
+	}
+	]
+}

@@ -1,0 +1,20 @@
+{
+	"name": "edge-of-empire",
+	"version": "1.0.0",
+	"description": "Edge of the Empire RPG character generator",
+	"main": "server.js",
+	"repository": "https://github.com/vizmi/edge-of-empire.git",
+	"devDependencies": {
+		"jshint": "latest",
+		"react-tools": "latest"
+	},
+	"dependencies": {
+		"express": "latest"
+	},
+	"scripts": {
+		"lint:app": "jshint client/app.js",
+		"lint:srv": "jshint server.js",
+		"build": "jsx --cache-dir ./.cache --extension jsx ./client ./client",
+		"run": "@start \"server\" /D %~dp0 /MIN node server.js"
+	}
+}

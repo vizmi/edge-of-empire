@@ -1,0 +1,6 @@
+# jsx translator
+node_modules/
+.cache/
+
+# sublime text workspace file
+*.sublime-workspace

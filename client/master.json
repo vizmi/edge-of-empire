@@ -1,0 +1,267 @@
+{
+  "species": [{
+    "name": "Bothan",
+    "xp": 100,
+    "characteristics": [1, 2, 2, 3, 2, 2]
+  }, {
+    "name": "Droid",
+    "xp": 175,
+    "characteristics": [1, 1, 1, 1, 1, 1]
+  }, {
+    "name": "Gand",
+    "xp": 100,
+    "characteristics": [2, 2, 2, 2, 3, 1]
+  }, {
+    "name": "Human",
+    "xp": 110,
+    "characteristics": [2, 2, 2, 2, 2, 2]
+  }, {
+    "name": "Rodian",
+    "xp": 100,
+    "characteristics": [2, 3, 2, 2, 1, 2]
+  }, {
+    "name": "Trandoshan",
+    "xp": 90,
+    "characteristics": [3, 1, 2, 2, 2, 2]
+  }, {
+    "name": "Twi\"lek",
+    "xp": 100,
+    "characteristics": [1, 2, 2, 2, 2, 3]
+  }, {
+    "name": "Wookiee",
+    "xp": 90,
+    "characteristics": [3, 2, 2, 2, 1, 2]
+  }],
+  "obligations": [{
+    "name": "Addiction"
+  }, {
+    "name": "Betrayal"
+  }, {
+    "name": "Blackmail"
+  }, {
+    "name": "Bounty"
+  }, {
+    "name": "Criminal"
+  }, {
+    "name": "Debt"
+  }, {
+    "name": "Dutybound"
+  }, {
+    "name": "Family"
+  }, {
+    "name": "Favor"
+  }, {
+    "name": "Oath"
+  }, {
+    "name": "Obsession"
+  }],
+  "additionalObligations": [{
+    "obligation": 5,
+    "xp": 5,
+    "credits": 0
+  }, {
+    "obligation": 10,
+    "xp": 10,
+    "credits": 0
+  }, {
+    "obligation": 5,
+    "xp": 0,
+    "credits": 1000
+  }, {
+    "obligation": 10,
+    "xp": 0,
+    "credits": 2500
+  }],
+  "characteristics": [{
+    "name": "Brawn"
+  }, {
+    "name": "Agility"
+  }, {
+    "name": "Intellect"
+  }, {
+    "name": "Cunning"
+  }, {
+    "name": "Willpower"
+  }, {
+    "name": "Presence"
+  }],
+  "skills": [{
+    "name": "Astrogation",
+    "chr": 2
+  }, {
+    "name": "Athletics",
+    "chr": 0
+  }, {
+    "name": "Brawl",
+    "chr": 0
+  }, {
+    "name": "Charm",
+    "chr": 5
+  }, {
+    "name": "Coercion",
+    "chr": 4
+  }, {
+    "name": "Computers",
+    "chr": 2
+  }, {
+    "name": "Cool",
+    "chr": 5
+  }, {
+    "name": "Coordination",
+    "chr": 1
+  }, {
+    "name": "Core Worlds",
+    "chr": 2
+  }, {
+    "name": "Deception",
+    "chr": 3
+  }, {
+    "name": "Discipline",
+    "chr": 4
+  }, {
+    "name": "Education",
+    "chr": 2
+  }, {
+    "name": "Gunnery",
+    "chr": 1
+  }, {
+    "name": "Leadership",
+    "chr": 5
+  }, {
+    "name": "Lore",
+    "chr": 2
+  }, {
+    "name": "Mechanics",
+    "chr": 2
+  }, {
+    "name": "Medicine",
+    "chr": 2
+  }, {
+    "name": "Melee",
+    "chr": 0
+  }, {
+    "name": "Negotiation",
+    "chr": 5
+  }, {
+    "name": "Outer Rim",
+    "chr": 2
+  }, {
+    "name": "Perception",
+    "chr": 3
+  }, {
+    "name": "Piloting - Planetary",
+    "chr": 1
+  }, {
+    "name": "Piloting - Space",
+    "chr": 1
+  }, {
+    "name": "Ranged - Heavy",
+    "chr": 1
+  }, {
+    "name": "Ranged - Light",
+    "chr": 1
+  }, {
+    "name": "Resilience",
+    "chr": 0
+  }, {
+    "name": "Skulduggery",
+    "chr": 3
+  }, {
+    "name": "Stealth",
+    "chr": 1
+  }, {
+    "name": "Streetwise",
+    "chr": 3
+  }, {
+    "name": "Survival",
+    "chr": 3
+  }, {
+    "name": "Underworld",
+    "chr": 2
+  }, {
+    "name": "Vigiliance",
+    "chr": 4
+  }, {
+    "name": "Xenology",
+    "chr": 2
+  }],
+  "careers": [{
+    "name": "Bounty Hunter",
+    "skills": [1, 2, 20, 21, 22, 23, 28, 31],
+    "specializations": [{
+      "name": "Assassin",
+      "skills": [17, 23, 26, 27]
+    }, {
+      "name": "Gadgeteer",
+      "skills": [2, 4, 15, 24]
+    }, {
+      "name": "Survivalist",
+      "skills": [32, 20, 25, 29]
+    }]
+  }, {
+    "name": "Colonist",
+    "skills": [3, 9, 8, 11, 14, 13, 18, 28],
+    "specializations": [{
+      "name": "Doctor",
+      "skills": [6, 11, 16, 25]
+    }, {
+      "name": "Politico",
+      "skills": [3, 4, 8, 9]
+    }, {
+      "name": "Scholar",
+      "skills": [19, 20, 30, 32]
+    }]
+  }, {
+    "name": "Explorer",
+    "skills": [0, 6, 14, 19, 20, 22, 29, 32],
+    "specializations": [{
+      "name": "Fringer",
+      "skills": [0, 7, 18, 28]
+    }, {
+      "name": "Scout",
+      "skills": [1, 16, 21, 29]
+    }, {
+      "name": "Trader",
+      "skills": [8, 9, 30, 18]
+    }]
+  }, {
+    "name": "Hired Gun",
+    "skills": [1, 2, 10, 17, 21, 24, 25, 31],
+    "specializations": [{
+      "name": "Bodyguard",
+      "skills": [12, 20, 21, 23]
+    }, {
+      "name": "Marauder",
+      "skills": [4, 17, 25, 29]
+    }, {
+      "name": "Mercenary Soldier",
+      "skills": [10, 12, 13, 23]
+    }]
+  }, {
+    "name": "Smuggler",
+    "skills": [7, 9, 30, 20, 22, 26, 28, 31],
+    "specializations": [{
+      "name": "Pilot",
+      "skills": [0, 12, 21, 22]
+    }, {
+      "name": "Scoundrel",
+      "skills": [3, 6, 9, 24]
+    }, {
+      "name": "Thief",
+      "skills": [5, 26, 27, 31]
+    }]
+  }, {
+    "name": "Technician",
+    "skills": [0, 5, 7, 10, 19, 15, 20, 21],
+    "specializations": [{
+      "name": "Mechanic",
+      "skills": [2, 15, 22, 26]
+    }, {
+      "name": "Outlaw Tech",
+      "skills": [11, 15, 28, 30]
+    }, {
+      "name": "Slicer",
+      "skills": [5, 11, 27, 30]
+    }]
+  }]
+}
