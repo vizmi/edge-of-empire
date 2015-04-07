@@ -1,0 +1,20 @@
+{
+    "folders":
+    [
+        {
+            "path": "/",
+            "folder_exclude_patterns": ["static/build/.module-cache", "static/fonts"]
+        },
+    ],
+    "settings":
+    {
+        // project specific settings
+    },
+    "build_systems":
+    [
+        {
+            "name": "List",
+            "shell_cmd": "ls -l"
+        }
+    ]
+}
