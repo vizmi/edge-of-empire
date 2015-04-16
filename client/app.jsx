@@ -1,9 +1,9 @@
 var master;
-$.ajax({ url: "data/master.json", dataType: "json" })
+$.ajax({ url: "master.json", dataType: "json" })
 .done(function( data ) {
 	master = data;
 	React.render(
-		React.createElement("h1", null, master.species[3].name),
+		<h1>{master.species[3].name}</h1>,
 		document.getElementById('example')
 		);
 })
