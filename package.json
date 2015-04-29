@@ -5,16 +5,26 @@
 	"main": "server.js",
 	"repository": "https://github.com/vizmi/edge-of-empire.git",
 	"devDependencies": {
+		"copyfiles": "latest",
 		"jshint": "latest",
-		"react-tools": "latest"
+		"react-tools": "latest",
+		"uglify-js": "latest",
+		"uglifycss": "latest"
 	},
 	"dependencies": {
 		"express": "latest"
 	},
 	"scripts": {
-		"lint:app": "jshint client/app.js",
-		"lint:srv": "jshint server.js",
-		"build": "jsx --cache-dir ./.cache --extension jsx ./client ./client",
-		"run": "@start \"server\" /D %~dp0 /MIN node server.js"
+		"jsx": "jsx --cache-dir .cache --extension jsx src client",
+		"lint": "jshint client/app.js && jshint server.js",
+		"ugly:lib": "uglifyjs client/lib/jquery.min.js client/lib/bootstrap.min.js client/lib/react.min.js -o client/lib/lib.js",
+		"ugly:app": "uglifyjs client/lib/lib.js client/app.js -o client/index.js",
+		"ugly:css": "uglifycss client/css/darkly.min.css client/css/app.css > client/css/index.css",
+		"ugly": "npm run ugly:lib && npm run ugly:app && npm run ugly:css",
+		"rename:prod": "del client\\index.html && copy client\\index-prod.html client\\index.html",
+		"rename:dev": "del client\\index.html && copy client\\index-dev.html client\\index.html",
+		"start": "@start \"server\" /MIN node server.js",
+		"prod": "npm run jsx && npm run lint && npm run ugly && npm run rename:prod && npm run start",
+		"build": "npm run jsx && npm run start && REM npm run rename:dev"
 	}
 }

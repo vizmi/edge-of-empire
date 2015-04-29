@@ -9,9 +9,6 @@
 	"build_systems": [{
 		"name": "build",
 		"shell_cmd": "npm run build"
-	},{
-		"name": "start server",
-		"shell_cmd": "npm run start"
 	}
 	]
 }
