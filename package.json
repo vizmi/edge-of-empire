@@ -17,7 +17,7 @@
 	"scripts": {
 		"jsx": "jsx --cache-dir .cache --extension jsx src client",
 		"lint": "jshint client/app.js && jshint server.js",
-		"ugly:lib": "uglifyjs client/lib/jquery.min.js client/lib/bootstrap.min.js client/lib/react.min.js -o client/lib/lib.js",
+		"ugly:lib": "uglifyjs client/lib/jquery.min.js client/lib/bootstrap.min.js client/lib/react-with-addons.min.js -o client/lib/lib.js",
 		"ugly:app": "uglifyjs client/lib/lib.js client/app.js -o client/index.js",
 		"ugly:css": "uglifycss client/css/darkly.min.css client/css/app.css > client/css/index.css",
 		"ugly": "npm run ugly:lib && npm run ugly:app && npm run ugly:css",

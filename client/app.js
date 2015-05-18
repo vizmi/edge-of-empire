@@ -1,21 +1,95 @@
 'use strict'
 
 var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
+
+	getInitialState: function() {
+		return {
+			name: '',
+			species: 3,
+			obligation: {
+				type: 3,
+				value: 10,
+				additional: [false, false, false, false]
+			}
+		};
+	},
+
+	onNameChange: function(event) {
+		this.setState({ name: event.target.value });
+	},
+
+	onSpeciesChange: function(event) {
+		this.setState({ species: event.target.value });
+	},
+
+	onObligationTypeChange: function(event) {
+		var t = event.target.value;
+		var s = React.addons.update(this.state, { obligation: { type: { $set: t }}});
+		this.setState(s);
+	},
+
+	onObligationValueChange: function(event) {
+		var v = event.target.value;
+		var o = this.state.obligation.value;
+		var s = React.addons.update(this.state, { obligation: { value: { $set: v }}});
+		if (v < o) {
+			s = React.addons.update(s, { obligation: { additional: { $set: [false, false, false, false] }}});
+		}
+		this.setState(s);
+	},
+
+	onAdditionalObligationChange: function(event) {
+		var i = event.target.value;
+		var v = event.target.checked;
+		var s = React.addons.update(this.state, { obligation: { additional: { $splice: [[i, 1, v]] }}});
+		this.setState(s);
+	},
+
 	render: function() {
+
+		var speciesOptions = this.props.master.species.map(function (item, index) {
+			return (
+				React.createElement("option", {key: index, value: index}, item.name)
+			);
+		});
+
 		return (
 			React.createElement("form", null, 
 				React.createElement("div", {className: "row"}, 
 					React.createElement("div", {className: "col-xs-10 col-xs-offset-1"}, 
 						React.createElement("div", {className: "row navigator", id: "general"}, 
 							React.createElement("div", {className: "col-xs-12"}, 
-								React.createElement(GeneralInfo, {species: this.props.master.species})
+								React.createElement("div", {className: "panel panel-default"}, 
+									React.createElement("div", {className: "panel-heading"}, 
+										React.createElement("h3", {className: "panel-title"}, "General information")
+									), 
+									React.createElement("div", {className: "panel-body"}, 
+										React.createElement("div", {className: "form-group"}, 
+											React.createElement("label", {htmlFor: "nameInput"}, "Name"), 
+											React.createElement("input", {type: "text", className: "form-control input-sm", id: "nameInput", placeholder: "name your character", 
+													value: this.state.name, onChange: this.onNameChange})
+										), 
+										React.createElement("div", {className: "form-group"}, 
+											React.createElement("label", {htmlFor: "speciesSelect"}, "Species"), 
+											React.createElement("select", {className: "form-control input-sm", id: "speciesSelect", 
+													value: this.state.species, onChange: this.onSpeciesChange}, 
+												speciesOptions
+											)
+										)
+									)
+								)
 							)
 						), 
 						React.createElement("div", {className: "row"}, 
 							React.createElement("div", {className: "col-xs-12"}, 
 								React.createElement(Obligation, {
 									obligations: this.props.master.obligations, 
-									additionalObligations: this.props.master.additionalObligations})
+									additionalObligations: this.props.master.additionalObligations, 
+									obligation: this.state.obligation, 
+									onTypeChange: this.onObligationTypeChange, 
+									onValueChange: this.onObligationValueChange, 
+									onAdditionalChange: this.onAdditionalObligationChange}), 
+								React.createElement("div", null, this.state.obligation.type, " ", this.state.obligation.value, " ", JSON.stringify(this.state.obligation.additional))
 							)
 						), 
 						React.createElement("div", {className: "row"}, 
@@ -32,7 +106,7 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 						), 
 						React.createElement("div", {className: "row"}, 
 							React.createElement("div", {className: "col-xs-12"}, 
-								React.createElement(AdditionalSpecialization, {
+								React.createElement(AdditionalSpecializations, {
 									careers: this.props.master.careers})
 							)
 						), 
@@ -67,55 +141,34 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 	}
 });
 
-var GeneralInfo = React.createClass({displayName: "GeneralInfo",
-	render: function() {
-		return (
-			React.createElement("div", {className: "panel panel-default"}, 
-				React.createElement("div", {className: "panel-heading"}, 
-					React.createElement("h3", {className: "panel-title"}, "General information")
-				), 
-				React.createElement("div", {className: "panel-body"}, 
-					React.createElement(NameInput, null), 
-					React.createElement(SpeciesSelect, {species: this.props.species})
-				)
-			)
-		);
-	}
-});
-
-var NameInput = React.createClass({displayName: "NameInput",
-	render: function() {
-		return (
-			React.createElement("div", {className: "form-group"}, 
-				React.createElement("label", {htmlFor: "nameInput"}, "Name"), 
-				React.createElement("input", {type: "text", className: "form-control input-sm", id: "nameInput", placeholder: "name your character"})
-			)
-		);
-	}
-});
-
-var SpeciesSelect = React.createClass({displayName: "SpeciesSelect",
+var Obligation = React.createClass({displayName: "Obligation",
 	render: function() {
 
-		var options = this.props.species.map(function (item, index) {
+		var typeOptions = this.props.obligations.map(function (item, index) {
 			return (
-				React.createElement("option", {key: index}, item.name)
+				React.createElement("option", {key: index, value: index}, item.name)
 			);
 		});
 
-		return (
-			React.createElement("div", {className: "form-group"}, 
-				React.createElement("label", {htmlFor: "speciesSelect"}, "Species"), 
-				React.createElement("select", {className: "form-control input-sm", id: "speciesSelect"}, 
-					options
-				)
-			)
-		);
-	}
-});
+		var addObligations = this.props.additionalObligations;
+		var totalAdditional = this.props.obligation.additional.reduce(function(prev, curr, index) {
+			return (prev + (curr ? addObligations[index].obligation : 0));
+		});
 
-var Obligation = React.createClass({displayName: "Obligation",
-	render: function() {
+		var checkBoxes = addObligations.map(function (item, index) {
+			var addStatus = this.props.obligation.additional[index];
+			var disable = !addStatus && (item.obligation > this.props.obligation.value - totalAdditional);
+			return (
+				React.createElement("div", {key: index, className: disable ? "checkbox disabled" : "checkbox"}, 
+					React.createElement("label", null, 
+						React.createElement("input", {type: "checkbox", value: index, checked: addStatus, disabled: disable, 
+							onChange: this.props.onAdditionalChange}), 
+						item.name
+					)
+				)
+			);
+		}, this);
+
 		return (
 			React.createElement("div", {className: "panel panel-default"}, 
 				React.createElement("div", {className: "panel-heading"}, 
@@ -123,73 +176,32 @@ var Obligation = React.createClass({displayName: "Obligation",
 				), 
 				React.createElement("div", {className: "panel-body"}, 
 					React.createElement("div", {className: "col-sm-6"}, 
-						React.createElement(ObligationTypeSelect, {obligations: this.props.obligations}), 
-						React.createElement(ObligationSizeSelect, null)
+						React.createElement("div", {className: "form-group"}, 
+							React.createElement("label", {htmlFor: "obligationTypeSelect"}, "Type"), 
+							React.createElement("select", {className: "form-control input-sm", id: "obligationTypeSelect", 
+								value: this.props.obligation.type, onChange: this.props.onTypeChange}, 
+								typeOptions
+							)
+						), 
+						React.createElement("div", {className: "form-group"}, 
+							React.createElement("label", {htmlFor: "obligationSizeSelect"}, "Starting Value"), 
+							React.createElement("select", {className: "form-control input-sm", id: "speciesSelect", 
+								value: this.props.obligation.value, onChange: this.props.onValueChange}, 
+								React.createElement("option", {value: "20"}, "20 (2 players)"), 
+								React.createElement("option", {value: "15"}, "15 (3 players)"), 
+								React.createElement("option", {value: "10"}, "10 (4-5 players)"), 
+								React.createElement("option", {value: "5"}, "5  (6+ players)")
+							)
+						)
 					), 
 					React.createElement("div", {className: "col-sm-6"}, 
-						React.createElement(AdditionalObligationCheckBoxes, {additionalObligations: this.props.additionalObligations})
+						React.createElement("div", {className: "form-group"}, 
+							React.createElement("label", {htmlFor: "additionalObligationCheckbox"}, "Additional Obligation"), 
+							React.createElement("div", {id: "additionalObligationCheckboxes"}, 
+								checkBoxes
+							)
+						)
 					)
-				)
-			)
-		);
-	}
-});
-
-var ObligationTypeSelect = React.createClass({displayName: "ObligationTypeSelect",
-	render: function() {
-
-		var options = this.props.obligations.map(function (item, index) {
-			return (
-				React.createElement("option", {key: index}, item.name)
-			);
-		});
-
-		return (
-			React.createElement("div", {className: "form-group"}, 
-				React.createElement("label", {htmlFor: "obligationTypeSelect"}, "Type"), 
-				React.createElement("select", {className: "form-control input-sm", id: "obligationTypeSelect"}, 
-					options
-				)
-			)
-		);
-	}
-});
-
-var ObligationSizeSelect = React.createClass({displayName: "ObligationSizeSelect",
-	render: function() {
-		return (
-			React.createElement("div", {className: "form-group"}, 
-				React.createElement("label", {htmlFor: "obligationSizeSelect"}, "Starting Value"), 
-				React.createElement("select", {className: "form-control input-sm", id: "speciesSelect"}, 
-					React.createElement("option", null, "20 (2 players)"), 
-					React.createElement("option", null, "15 (3 players)"), 
-					React.createElement("option", null, "10 (4-5 players)"), 
-					React.createElement("option", null, "5  (6+ players)")
-				)
-			)
-		);
-	}
-});
-
-var AdditionalObligationCheckBoxes = React.createClass({displayName: "AdditionalObligationCheckBoxes",
-	render: function() {
-
-		var checkBoxes = this.props.additionalObligations.map(function (item, index) {
-			return (
-				React.createElement("div", {key: index, className: "checkbox"}, 
-					React.createElement("label", null, 
-						React.createElement("input", {type: "checkbox", value: index}), 
-						item.name
-					)
-				)
-			);
-		});
-
-		return (
-			React.createElement("div", {className: "form-group"}, 
-				React.createElement("label", {htmlFor: "additionalObligationCheckbox"}, "Additional Obligation"), 
-				React.createElement("div", {id: "additionalObligationCheckboxes"}, 
-					checkBoxes
 				)
 			)
 		);
@@ -293,23 +305,32 @@ var Specialization = React.createClass({displayName: "Specialization",
 	}
 });
 
-var AdditionalSpecialization = React.createClass({displayName: "AdditionalSpecialization",
+var AdditionalSpecCheckBox =  React.createClass({displayName: "AdditionalSpecCheckBox",
+	render: function() {
+		var spec = this.props.specialization;
+		var index = this.props.specializationIndex;
+		
+	}
+});
+
+var AdditionalSpecializations = React.createClass({displayName: "AdditionalSpecializations",
 	render: function() {
 		//TODO: selected career
-		var selectedCareerIndex = 0;
+		var selectedCareerIndex = 2;
 		//TODO: selected specialization
-		var selectedSpecializationIndex = 0;
+		var selectedSpecializationIndex = 1;
 
-		var specializations = this.props.careers.map(function(career, careerIndex) {
-			var careerSpecs = career.specializations.map(function(specialization, specIndex) {
+		var rows = this.props.careers.map(function(career, careerIndex) {
+
+			var cells = career.specializations.map(function(specialization, specIndex) {
 				var style = "col-sm-4";
 				var disabled = false;
-				if (careerIndex === selectedCareerIndex) {
+				if (careerIndex === selectedCareerIndex && specIndex === selectedSpecializationIndex) {
+					style = "col-sm-4 bg-primary";
+					disabled = true;
+				} else if (careerIndex === selectedCareerIndex) {
 					style = "col-sm-4 bg-info";
-					if (specIndex === selectedSpecializationIndex) {
-						style = "col-sm-4 bg-primary";
-						disabled = true;
-					}
+					disabled = false;
 				}
 				return (
 					React.createElement("div", {key: specIndex, className: style}, 
@@ -320,11 +341,13 @@ var AdditionalSpecialization = React.createClass({displayName: "AdditionalSpecia
 					)
 				);
 			});
+
 			return (
 				React.createElement("div", {key: careerIndex, className: "row"}, 
-					careerSpecs
+					cells
 				)
-			);
+			);	
+		
 		});
 
 		return (
@@ -333,7 +356,7 @@ var AdditionalSpecialization = React.createClass({displayName: "AdditionalSpecia
 					React.createElement("h3", {className: "panel-title"}, "Additional Specializations")
 				), 
 				React.createElement("div", {className: "panel-body"}, 
-					specializations
+					rows
 				)
 			)
 		);
