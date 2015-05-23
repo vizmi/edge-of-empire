@@ -5,4 +5,3 @@ node_modules/
 # sublime text workspace file
 *.sublime-workspace
 # jsx output file
-client/app.js

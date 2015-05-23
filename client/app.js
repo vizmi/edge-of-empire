@@ -10,7 +10,9 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 				type: 3,
 				value: 10,
 				additional: [false, false, false, false]
-			}
+			},
+			career: 4,
+			specialization: 1
 		};
 	},
 
@@ -96,12 +98,14 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 							React.createElement("div", {className: "col-sm-6"}, 
 								React.createElement(Career, {
 									careers: this.props.master.careers, 
-									skills: this.props.master.skills})
+									skills: this.props.master.skills, 
+									career: this.state.career})
 							), 
 							React.createElement("div", {className: "col-sm-6"}, 
 								React.createElement(Specialization, {
 									careers: this.props.master.careers, 
-									skills: this.props.master.skills})
+									skills: this.props.master.skills, 
+									specialization: this.state.specialization})
 							)
 						), 
 						React.createElement("div", {className: "row"}, 
@@ -158,6 +162,7 @@ var Obligation = React.createClass({displayName: "Obligation",
 		var checkBoxes = addObligations.map(function (item, index) {
 			var addStatus = this.props.obligation.additional[index];
 			var disable = !addStatus && (item.obligation > this.props.obligation.value - totalAdditional);
+			
 			return (
 				React.createElement("div", {key: index, className: disable ? "checkbox disabled" : "checkbox"}, 
 					React.createElement("label", null, 

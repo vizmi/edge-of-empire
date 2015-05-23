@@ -10,7 +10,9 @@ var CharacterGenerator = React.createClass({
 				type: 3,
 				value: 10,
 				additional: [false, false, false, false]
-			}
+			},
+			career: 4,
+			specialization: 1
 		};
 	},
 
@@ -96,12 +98,14 @@ var CharacterGenerator = React.createClass({
 							<div className="col-sm-6">
 								<Career
 									careers={this.props.master.careers}
-									skills={this.props.master.skills} />
+									skills={this.props.master.skills}
+									career={this.state.career} />
 							</div>
 							<div className="col-sm-6">
 								<Specialization
 									careers={this.props.master.careers}
-									skills={this.props.master.skills} />
+									skills={this.props.master.skills}
+									specialization={this.state.specialization} />
 							</div>
 						</div>
 						<div className="row">

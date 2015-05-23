@@ -14,6 +14,10 @@
 	"dependencies": {
 		"express": "latest"
 	},
+	"engines": {
+		"node": "0.12.3",
+		"npm": "2.5.1"
+	},
 	"scripts": {
 		"jsx": "jsx --cache-dir .cache --extension jsx src client",
 		"lint": "jshint client/app.js && jshint server.js",
@@ -23,7 +27,7 @@
 		"ugly": "npm run ugly:lib && npm run ugly:app && npm run ugly:css",
 		"rename:prod": "del client\\index.html && copy client\\index-prod.html client\\index.html",
 		"rename:dev": "del client\\index.html && copy client\\index-dev.html client\\index.html",
-		"start": "@start \"server\" /MIN node server.js",
+		"start": "@start \"server\" /MIN node web.js",
 		"prod": "npm run jsx && npm run lint && npm run ugly && npm run rename:prod && npm run start",
 		"build": "npm run jsx && npm run start && REM npm run rename:dev"
 	}
