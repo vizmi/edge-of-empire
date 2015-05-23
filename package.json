@@ -2,7 +2,7 @@
 	"name": "edge-of-empire",
 	"version": "1.0.0",
 	"description": "Edge of the Empire RPG character generator",
-	"main": "server.js",
+	"main": "web.js",
 	"repository": "https://github.com/vizmi/edge-of-empire.git",
 	"devDependencies": {
 		"copyfiles": "latest",
