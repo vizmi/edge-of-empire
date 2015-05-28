@@ -12,8 +12,9 @@ var CharacterGenerator = React.createClass({
 				additional: [false, false, false, false]
 			},
 			career: 4,
-			specialization: 0,
-			skills: []
+			specialization: 12,
+			skills: [],
+			additionalSpecializations: []
 		};
 		
 		// almost an antipattern (but it is not)
@@ -29,22 +30,27 @@ var CharacterGenerator = React.createClass({
 		return state;
 	},
 
+
+	/////////////////
+	//  ui events  //
+	/////////////////
+	
 	onNameChange: function(event) {
 		this.setState({ name: event.target.value });
 	},
 
 	onSpeciesChange: function(event) {
-		this.setState({ species: event.target.value });
+		this.setState({ species: parseInt(event.target.value) });
 	},
 
 	onObligationTypeChange: function(event) {
-		var t = event.target.value;
+		var t = parseInt(event.target.value);
 		var s = React.addons.update(this.state, { obligation: { type: { $set: t }}});
 		this.setState(s);
 	},
 
 	onObligationValueChange: function(event) {
-		var v = event.target.value;
+		var v = parseInt(event.target.value);
 		var o = this.state.obligation.value;
 		var s = React.addons.update(this.state, { obligation: { value: { $set: v }}});
 		if (v < o) {
@@ -61,26 +67,28 @@ var CharacterGenerator = React.createClass({
 	},
 
 	onCareerChange: function(event) {
+		var c = parseInt(event.target.value);
+		var sp = this.props.master.careers[c].specializations[0];
 		var s = this.state.skills.map(function(skill) {
 			skill.career = 0;
 			skill.spec = 0;
 			return skill;
 		});
-
-		this.setState({ career: event.target.value, skills: s });
+		this.setState({ career: c, specialization: sp, skills: s });
 	},
 
 	onSpecializationChange: function(event) {
+		var sp = parseInt(event.target.value);
 		var s = this.state.skills.map(function(skill) {
 			skill.spec = 0;
 			return skill;
 		});
 
-		this.setState({ specialization: event.target.value, skill:s });
+		this.setState({ specialization: sp, skill:s });
 	},
 
 	onCareerSkillChange: function(event) {
-		var i = event.target.value;
+		var i = parseInt(event.target.value);
 		var v = this.state.skills[i];
 		v.career = (event.target.checked ? 1 : 0);
 		var s = React.addons.update(this.state, { skills: { $splice: [[i, 1, v]] }});
@@ -88,12 +96,51 @@ var CharacterGenerator = React.createClass({
 	},
 
 	onSpecSkillChange: function(event) {
-		var i = event.target.value;
+		var i = parseInt(event.target.value);
 		var v = this.state.skills[i];
 		v.spec = (event.target.checked ? 1 : 0);
 		var s = React.addons.update(this.state, { skills: { $splice: [[i, 1, v]] }});
 		this.setState(s);
 	},
+
+	onAdditionalSpecializationClick: function(event) {
+		var sp = parseInt(event.target.value);
+		var i = this.state.additionalSpecializations.indexOf(sp);
+		if (i === -1) {
+			var s = React.addons.update(this.state, {additionalSpecializations : { $push: [sp] }});
+		} else {
+			var s = React.addons.update(this.state, {additionalSpecializations : { $splice: [[i, 1]] }});
+		}
+		this.setState(s);
+	},
+
+	/////////////////
+	//   helpers   //
+	/////////////////
+
+	xp: function() {
+		var result = [];
+		var a = this.props.master.additionalObligations;
+		var x = this.props.master.species[this.state.species].xp;
+		x += this.state.obligation.additional.reduce(function(prev, item, index) {
+			return prev + (item ? a[index].xp : 0);
+		}, 0);
+		result.push(x);
+		
+		var s = this.props.master.specializations;
+		var c = this.state.career;
+		x = this.state.additionalSpecializations.reduce(function(prev, item, index) {
+			return prev + ((s[item].career === c) ? (index + 1) * 10 : (index + 2) * 10);
+		}, 0);
+		alert(x);
+		result.push(x);
+
+		return result;
+	},
+
+	/////////////////
+	//   render    //
+	/////////////////
 
 	render: function() {
 
@@ -154,6 +201,7 @@ var CharacterGenerator = React.createClass({
 							<div className="col-sm-6">
 								<Specialization
 										careers={this.props.master.careers}
+										specializations={this.props.master.specializations}
 										skillList={this.props.master.skills}
 										career={this.state.career}
 										specialization={this.state.specialization}
@@ -165,7 +213,13 @@ var CharacterGenerator = React.createClass({
 						<div className="row">
 							<div className="col-xs-12">
 								<AdditionalSpecializations
-										careers={this.props.master.careers} />
+										careers={this.props.master.careers}
+										specializations={this.props.master.specializations}
+										career={this.state.career}
+										specialization={this.state.specialization}
+										additionalSpecializations={this.state.additionalSpecializations}
+										onClick={this.onAdditionalSpecializationClick} />
+								{JSON.stringify(this.xp())}
 							</div>
 						</div>
 						<div className="row navigator" id="characteristics">
@@ -211,7 +265,7 @@ var Obligation = React.createClass({
 		var addObligations = this.props.additionalObligations;
 		var totalAdditional = this.props.obligation.additional.reduce(function(prev, curr, index) {
 			return (prev + (curr ? addObligations[index].obligation : 0));
-		});
+		}, 0);
 
 		var checkBoxes = addObligations.map(function(item, index) {
 			var addStatus = this.props.obligation.additional[index];
@@ -262,6 +316,9 @@ var Obligation = React.createClass({
 						</div>
 					</div>
 				</div>
+				<div className="panel-footer">
+					Total obligation: {(this.props.obligation.value + totalAdditional)}
+				</div>
 			</div>
 		);
 	}
@@ -280,17 +337,17 @@ var Career = React.createClass({
 		var skills = this.props.skills;
 		var selectedCareer = this.props.careers[this.props.career];
 		var onChange = this.props.onCareerSkillChange;
-		
+
 		var count = skills.reduce(function(prev, item) { return prev + item.career; }, 0);
-		var full = (count === 4);
+		var total = 4;
+		var full = (count === total);
 
 		var skillCheckBoxes = selectedCareer.skills.map(function(item) {
 			var status = (skills[item].career === 1);
-			//TODO disable rule
 			var disable = !status && full;
 
 			return (
-				<div key={item} className="checkbox">
+				<div key={item} className={disable ? "checkbox disabled" : "checkbox"}>
 					<label>
 						<input type="checkbox" value={item}
 								checked={status} disabled={disable}
@@ -321,6 +378,9 @@ var Career = React.createClass({
 						</div>
 					</div>
 				</div>
+				<div className="panel-footer">
+					Skills selected: {count} / {total}
+				</div>
 			</div>
 		);
 	}
@@ -329,28 +389,29 @@ var Career = React.createClass({
 var Specialization = React.createClass({
 	render: function() {
 		var selectedCareer = this.props.careers[this.props.career];
+		var specs = this.props.specializations;
 
-		var specializationOptions = selectedCareer.specializations.map(function(item, index) {
+		var specializationOptions	= selectedCareer.specializations.map(function(item) {
 			return (
-				<option key={index} value={index}>{item.name}</option>
+				<option key={item} value={item}>{specs[item].name}</option>
 			);
 		});
 
 		var skillList = this.props.skillList;
 		var skills = this.props.skills;
-		var selectedSpecialization = selectedCareer.specializations[this.props.specialization];
+		var selectedSpecialization = this.props.specializations[this.props.specialization];
 		var onChange = this.props.onSpecSkillChange;
 
 		var count = skills.reduce(function(prev, item) { return prev + item.spec; }, 0);
-		var full = (count === 2);
+		var total = 2;
+		var full = (count === total);
 
 		var skillCheckBoxes = selectedSpecialization.skills.map(function(item) {
 			var status = (skills[item].spec === 1);
-			//TODO disable rule
 			var disable = !status && full;
 
 			return (
-				<div key={item} className="checkbox">
+				<div key={item} className={disable ? "checkbox disabled" : "checkbox"}>
 					<label>
 						<input type="checkbox" value={item}
 								checked={status} disabled={disable}
@@ -381,54 +442,59 @@ var Specialization = React.createClass({
 						</div>
 					</div>
 				</div>
+				<div className="panel-footer">
+					Skills selected: {count} / {total}
+				</div>
+
 			</div>
 		);
 	}
 });
 
-var AdditionalSpecCheckBox =  React.createClass({
-	render: function() {
-		var spec = this.props.specialization;
-		var index = this.props.specializationIndex;
-		
-	}
-});
-
 var AdditionalSpecializations = React.createClass({
 	render: function() {
-		//TODO: selected career
-		var selectedCareerIndex = 2;
-		//TODO: selected specialization
-		var selectedSpecializationIndex = 1;
+
+		var selectedCareer = this.props.career;
+		var selectedSpecialization = this.props.specialization;
+		var specs = this.props.specializations;
+		var addSpecs = this.props.additionalSpecializations;
+		var onClick = this.props.onClick;
 
 		var rows = this.props.careers.map(function(career, careerIndex) {
 
-			var cells = career.specializations.map(function(specialization, specIndex) {
-				var style = "col-sm-4";
-				var disabled = false;
-				if (careerIndex === selectedCareerIndex && specIndex === selectedSpecializationIndex) {
-					style = "col-sm-4 bg-primary";
-					disabled = true;
-				} else if (careerIndex === selectedCareerIndex) {
-					style = "col-sm-4 bg-info";
-					disabled = false;
+			var cells = career.specializations.map(function(specialization) {
+
+				var style = "btn btn-block btn-sm" // "btn-default";
+				var disable = false;
+				if (addSpecs.indexOf(specialization) !== -1) {
+					style += " active";
 				}
+				if (specialization === selectedSpecialization) {
+					style += " active";
+					disable = true;
+				}
+				if (careerIndex === selectedCareer) {
+					style += " btn-primary";
+				} else {
+					style += " btn-default";
+				}
+
 				return (
-					<div key={specIndex} className={style}>
-						<div className="checkBox">
-							<label className="control-label">
-								<input type="checkbox" value={specIndex} disabled={disabled} />{specialization.name}</label>
-						</div>
+					<div key={specialization} className="col-sm-3">
+						<button type="button" value={specialization} className={style} disabled={disable}
+								onClick={onClick}>
+							{specs[specialization].name}
+						</button>
 					</div>
 				);
 			});
 
 			return (
 				<div key={careerIndex} className="row">
+					<div className="col-sm-3">{career.name}</div>
 					{cells}
 				</div>
-			);	
-		
+			);
 		});
 
 		return (
@@ -438,6 +504,12 @@ var AdditionalSpecializations = React.createClass({
 				</div>
 				<div className="panel-body">
 					{rows}
+				</div>
+				<div className="panel-footer">
+					<div className="row">
+						<div className="col-sm-3">XP Spent:</div>
+						<div className="col-sm-9"><XPBar /></div>
+					</div>
 				</div>
 			</div>
 		);
@@ -547,17 +619,26 @@ var Skills = React.createClass({
 	}
 });
 
+var XPBar = React.createClass({
+	render: function() {
+
+		return (
+			<div className="progress">
+				<div className="progress-bar progress-bar-info" role="progressbar" style={{width: "10%"}} />
+				<div className="progress-bar progress-bar-info" role="progressbar" style={{width: "30%"}} />
+				<div className="progress-bar progress-bar-danger" role="progressbar" style={{width: "20%"}} />
+				<div className="progress-bar progress-bar-info" role="progressbar" style={{width: "20%"}} />
+			</div>
+		);
+	}
+});
 
 // entry point
 
 $.ajax({ url: "master.json", dataType: "json" })
 	.done(function(master) {
-		React.render(
-			<CharacterGenerator master={master} />,
-			document.getElementById('characterGenerator')
-		);
-
-		})
+		React.render( <CharacterGenerator master={master} /> , document.getElementById("characterGenerator"));
+	})
 	.fail(function(request, status, exception) {
 		alert('Request for ' + this.url + ' failed with: ' + exception.toString());
 	});
