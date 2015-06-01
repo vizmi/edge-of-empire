@@ -1,5 +1,49 @@
 'use strict'
 
+///////////////
+//  helpers  //
+///////////////
+
+var CHAR_PRICES = [0, 10, 30, 60, 100, 150];
+
+function xpBudget(master, character) {
+	var a = master.additionalObligations;
+	var x = master.species[character.species].xp;
+	x += character.obligation.additional.reduce(function(prev, item, index) {
+		return prev + (item ? a[index].xp : 0);
+	}, 0);
+
+	return x;
+}
+
+function xpSpent(master, character) {
+		var specs = master.specializations;
+		var career = character.career.id;
+		var x = character.additionalSpecializations.reduce(function(prev, item, index) {
+			return prev + ((specs[item].career === career) ? (index + 1) * 10 : (index + 2) * 10);
+		}, 0);
+
+		var startChars = master.species[character.species].characteristics;
+		var chars = character.characteristics;
+		x += chars.reduce(function(prev, item, index) {
+			return (prev + (CHAR_PRICES[item] - CHAR_PRICES[startChars[index]]));
+		}, 0);
+		
+		return x;
+}
+
+function maxChar(current, xp) {
+	var r = current;
+	while ((CHAR_PRICES[r] - CHAR_PRICES[current]) <= xp) {
+		r++;
+	}
+	return (r - 1);
+}
+
+/////////////////////
+//  React classes  //
+/////////////////////
+
 var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 
 	getInitialState: function() {
@@ -11,36 +55,32 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 				value: 10,
 				additional: [false, false, false, false]
 			},
-			career: 4,
-			specialization: 12,
-			skills: [],
-			additionalSpecializations: []
+			career: {
+				id: 4,
+				skills: []
+			},
+			specialization: {
+				id: 12,
+				skills: []
+			},
+			additionalSpecializations: [],
+			characteristics: [2, 2, 2, 2, 2, 2]
 		};
-		
-		// almost an antipattern (but it is not)
-		this.props.master.skills.forEach(function(item, index) {
-			state.skills.push({
-				species: 0,
-				career: 0,
-				spec: 0,
-				bought: 0
-			});
-		});
 		
 		return state;
 	},
 
 
-	/////////////////
 	//  ui events  //
-	/////////////////
 	
 	onNameChange: function(event) {
 		this.setState({ name: event.target.value });
 	},
 
 	onSpeciesChange: function(event) {
-		this.setState({ species: parseInt(event.target.value) });
+		var sp = parseInt(event.target.value);
+		var ch = this.props.master.species[sp].characteristics.slice(); // shallow copy the array
+		this.setState({ species: sp, characteristics: ch });
 	},
 
 	onObligationTypeChange: function(event) {
@@ -69,37 +109,50 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 	onCareerChange: function(event) {
 		var c = parseInt(event.target.value);
 		var sp = this.props.master.careers[c].specializations[0];
-		var s = this.state.skills.map(function(skill) {
-			skill.career = 0;
-			skill.spec = 0;
-			return skill;
+		var s = React.addons.update(this.state, {
+			career: { id: { $set: c}, skills: {$set: []}},
+			specialization: { id: {$set: sp}, skills: {$set: []}}
 		});
-		this.setState({ career: c, specialization: sp, skills: s });
+		// remove spec from the additonal specs list
+		var i = this.state.additionalSpecializations.indexOf(sp);
+		if (i !== -1) {
+			s = React.addons.update(this.state, {additionalSpecializations: { $splice: [[i, 1]] }});
+		}
+		this.setState(s);
+	},
+
+	onCareerSkillChange: function(event) {
+		var skill = parseInt(event.target.value);
+		var i = this.state.career.skills.indexOf(skill);
+		if (i === -1) {
+			var s = React.addons.update(this.state, {career: { skills: { $push: [skill] }}});
+		} else {
+			var s = React.addons.update(this.state, {career: { skills: { $splice: [[i, 1]] }}});
+		}
+		this.setState(s);
 	},
 
 	onSpecializationChange: function(event) {
 		var sp = parseInt(event.target.value);
-		var s = this.state.skills.map(function(skill) {
-			skill.spec = 0;
-			return skill;
+		var s = React.addons.update(this.state, {
+			specialization: { id: {$set: sp}, skills: {$set: []}}
 		});
-
-		this.setState({ specialization: sp, skill:s });
-	},
-
-	onCareerSkillChange: function(event) {
-		var i = parseInt(event.target.value);
-		var v = this.state.skills[i];
-		v.career = (event.target.checked ? 1 : 0);
-		var s = React.addons.update(this.state, { skills: { $splice: [[i, 1, v]] }});
+		// remove spec from the additonal specs list
+		var i = this.state.additionalSpecializations.indexOf(sp);
+		if (i !== -1) {
+			s = React.addons.update(this.state, {additionalSpecializations: { $splice: [[i, 1]] }});
+		}
 		this.setState(s);
 	},
 
 	onSpecSkillChange: function(event) {
-		var i = parseInt(event.target.value);
-		var v = this.state.skills[i];
-		v.spec = (event.target.checked ? 1 : 0);
-		var s = React.addons.update(this.state, { skills: { $splice: [[i, 1, v]] }});
+		var skill = parseInt(event.target.value);
+		var i = this.state.specialization.skills.indexOf(skill);
+		if (i === -1) {
+			var s = React.addons.update(this.state, {specialization: { skills: { $push: [skill] }}});
+		} else {
+			var s = React.addons.update(this.state, {specialization: { skills: { $splice: [[i, 1]] }}});
+		}
 		this.setState(s);
 	},
 
@@ -107,40 +160,27 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 		var sp = parseInt(event.target.value);
 		var i = this.state.additionalSpecializations.indexOf(sp);
 		if (i === -1) {
-			var s = React.addons.update(this.state, {additionalSpecializations : { $push: [sp] }});
+			var s = React.addons.update(this.state, {additionalSpecializations: { $push: [sp] }});
 		} else {
-			var s = React.addons.update(this.state, {additionalSpecializations : { $splice: [[i, 1]] }});
+			var s = React.addons.update(this.state, {additionalSpecializations: { $splice: [[i, 1]] }});
 		}
 		this.setState(s);
 	},
 
-	/////////////////
-	//   helpers   //
-	/////////////////
+	onCharacteristicChange: function(event) {
+		var i = parseInt(event.target.id.substring(5,6));
+		var v = parseInt(event.target.value);
+		var min = parseInt(event.target.min);
+		var max = parseInt(event.target.max);
 
-	xp: function() {
-		var result = [];
-		var a = this.props.master.additionalObligations;
-		var x = this.props.master.species[this.state.species].xp;
-		x += this.state.obligation.additional.reduce(function(prev, item, index) {
-			return prev + (item ? a[index].xp : 0);
-		}, 0);
-		result.push(x);
-		
-		var s = this.props.master.specializations;
-		var c = this.state.career;
-		x = this.state.additionalSpecializations.reduce(function(prev, item, index) {
-			return prev + ((s[item].career === c) ? (index + 1) * 10 : (index + 2) * 10);
-		}, 0);
-		alert(x);
-		result.push(x);
-
-		return result;
+		if (isNaN(v) || v > max || v < min) {
+			return false;
+		}
+		var s = React.addons.update(this.state, { characteristics: { $splice: [[i, 1, v]] }});
+		this.setState(s);
 	},
 
-	/////////////////
-	//   render    //
-	/////////////////
+	//  render  //
 
 	render: function() {
 
@@ -161,16 +201,38 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 										React.createElement("h3", {className: "panel-title"}, "General information")
 									), 
 									React.createElement("div", {className: "panel-body"}, 
-										React.createElement("div", {className: "form-group"}, 
-											React.createElement("label", {htmlFor: "nameInput"}, "Name"), 
-											React.createElement("input", {type: "text", className: "form-control input-sm", id: "nameInput", placeholder: "name your character", 
-													value: this.state.name, onChange: this.onNameChange})
+										React.createElement("div", {className: "row"}, 
+											React.createElement("div", {className: "col-sm-6"}, 
+												React.createElement("div", {className: "form-group"}, 
+													React.createElement("label", {htmlFor: "nameInput"}, "Name"), 
+													React.createElement("input", {type: "text", className: "form-control input-sm", id: "nameInput", placeholder: "name your character", 
+															value: this.state.name, onChange: this.onNameChange})
+												)
+											), 
+											React.createElement("div", {className: "col-sm-6"}, 
+												React.createElement("div", {className: "form-group"}, 
+													React.createElement("label", {htmlFor: "xp"}, "XP:"), 
+													React.createElement("div", {id: "xp"}, 
+														React.createElement(XP, {master: this.props.master, character: this.state})
+													)
+												)
+											)
 										), 
-										React.createElement("div", {className: "form-group"}, 
-											React.createElement("label", {htmlFor: "speciesSelect"}, "Species"), 
-											React.createElement("select", {className: "form-control input-sm", id: "speciesSelect", 
-													value: this.state.species, onChange: this.onSpeciesChange}, 
-												speciesOptions
+										React.createElement("div", {className: "row"}, 
+											React.createElement("div", {className: "col-sm-6"}, 
+												React.createElement("div", {className: "form-group"}, 
+													React.createElement("label", {htmlFor: "speciesSelect"}, "Species"), 
+													React.createElement("select", {className: "form-control input-sm", id: "speciesSelect", 
+															value: this.state.species, onChange: this.onSpeciesChange}, 
+														speciesOptions
+													)
+												)
+											), 
+											React.createElement("div", {className: "col-sm-6"}, 
+												React.createElement("div", {className: "form-group"}, 
+													React.createElement("label", {htmlFor: "creditsPar"}, "Credits:"), 
+													React.createElement("p", {id: "creditsPar", className: "form-control-static"}, " 5000 Cr ")
+												)
 											)
 										)
 									)
@@ -180,8 +242,7 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 						React.createElement("div", {className: "row"}, 
 							React.createElement("div", {className: "col-xs-12"}, 
 								React.createElement(Obligation, {
-										obligations: this.props.master.obligations, 
-										additionalObligations: this.props.master.additionalObligations, 
+										master: this.props.master, 
 										obligation: this.state.obligation, 
 										onTypeChange: this.onObligationTypeChange, 
 										onValueChange: this.onObligationValueChange, 
@@ -191,21 +252,16 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 						React.createElement("div", {className: "row"}, 
 							React.createElement("div", {className: "col-sm-6"}, 
 								React.createElement(Career, {
-										careers: this.props.master.careers, 
-										skillList: this.props.master.skills, 
+										master: this.props.master, 
 										career: this.state.career, 
-										skills: this.state.skills, 
 										onCareerChange: this.onCareerChange, 
 										onCareerSkillChange: this.onCareerSkillChange})
 							), 
 							React.createElement("div", {className: "col-sm-6"}, 
 								React.createElement(Specialization, {
-										careers: this.props.master.careers, 
-										specializations: this.props.master.specializations, 
-										skillList: this.props.master.skills, 
-										career: this.state.career, 
+										master: this.props.master, 
+										careerId: this.state.career.id, 
 										specialization: this.state.specialization, 
-										skills: this.state.skills, 
 										onSpecializationChange: this.onSpecializationChange, 
 										onSpecSkillChange: this.onSpecSkillChange})
 							)
@@ -213,18 +269,17 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 						React.createElement("div", {className: "row"}, 
 							React.createElement("div", {className: "col-xs-12"}, 
 								React.createElement(AdditionalSpecializations, {
-										careers: this.props.master.careers, 
-										specializations: this.props.master.specializations, 
-										career: this.state.career, 
-										specialization: this.state.specialization, 
-										additionalSpecializations: this.state.additionalSpecializations, 
-										onClick: this.onAdditionalSpecializationClick}), 
-								JSON.stringify(this.xp())
+										master: this.props.master, 
+										character: this.state, 
+										onClick: this.onAdditionalSpecializationClick})
 							)
 						), 
 						React.createElement("div", {className: "row navigator", id: "characteristics"}, 
 							React.createElement("div", {className: "col-xs-12"}, 
-								React.createElement(Characteristics, {characteristics: this.props.master.characteristics})
+								React.createElement(Characteristics, {
+										master: this.props.master, 
+										character: this.state, 
+										onChange: this.onCharacteristicChange})
 							)
 						), 
 						React.createElement("div", {className: "row navigator", id: "skills"}, 
@@ -256,13 +311,13 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 var Obligation = React.createClass({displayName: "Obligation",
 	render: function() {
 
-		var typeOptions = this.props.obligations.map(function(item, index) {
+		var typeOptions = this.props.master.obligations.map(function(item, index) {
 			return (
 				React.createElement("option", {key: index, value: index}, item.name)
 			);
 		});
 
-		var addObligations = this.props.additionalObligations;
+		var addObligations = this.props.master.additionalObligations;
 		var totalAdditional = this.props.obligation.additional.reduce(function(prev, curr, index) {
 			return (prev + (curr ? addObligations[index].obligation : 0));
 		}, 0);
@@ -327,23 +382,23 @@ var Obligation = React.createClass({displayName: "Obligation",
 var Career = React.createClass({displayName: "Career",
 	render: function() {
 
-		var careerOptions = this.props.careers.map(function(item, index) {
+		var careerOptions = this.props.master.careers.map(function(item, index) {
 			return (
 				React.createElement("option", {key: index, value: index}, item.name)
 			);
 		});
 
-		var skillList = this.props.skillList;
-		var skills = this.props.skills;
-		var selectedCareer = this.props.careers[this.props.career];
+		var skillList = this.props.master.skills;
+		var skills = this.props.career.skills;
+		var selectedCareer = this.props.master.careers[this.props.career.id];
 		var onChange = this.props.onCareerSkillChange;
 
-		var count = skills.reduce(function(prev, item) { return prev + item.career; }, 0);
+		var count = skills.length;
 		var total = 4;
 		var full = (count === total);
 
 		var skillCheckBoxes = selectedCareer.skills.map(function(item) {
-			var status = (skills[item].career === 1);
+			var status = (skills.indexOf(item) !== -1);
 			var disable = !status && full;
 
 			return (
@@ -367,7 +422,7 @@ var Career = React.createClass({displayName: "Career",
 					React.createElement("div", {className: "form-group"}, 
 						React.createElement("label", {htmlFor: "CareerSelect"}, "Name"), 
 						React.createElement("select", {className: "form-control input-sm", id: "CareerSelect", 
-								value: this.props.career, onChange: this.props.onCareerChange}, 
+								value: this.props.career.id, onChange: this.props.onCareerChange}, 
 							careerOptions
 						)
 					), 
@@ -388,8 +443,8 @@ var Career = React.createClass({displayName: "Career",
 
 var Specialization = React.createClass({displayName: "Specialization",
 	render: function() {
-		var selectedCareer = this.props.careers[this.props.career];
-		var specs = this.props.specializations;
+		var selectedCareer = this.props.master.careers[this.props.careerId];
+		var specs = this.props.master.specializations;
 
 		var specializationOptions	= selectedCareer.specializations.map(function(item) {
 			return (
@@ -397,17 +452,17 @@ var Specialization = React.createClass({displayName: "Specialization",
 			);
 		});
 
-		var skillList = this.props.skillList;
-		var skills = this.props.skills;
-		var selectedSpecialization = this.props.specializations[this.props.specialization];
+		var skillList = this.props.master.skills;
+		var skills = this.props.specialization.skills;
+		var selectedSpecialization = this.props.master.specializations[this.props.specialization.id];
 		var onChange = this.props.onSpecSkillChange;
 
-		var count = skills.reduce(function(prev, item) { return prev + item.spec; }, 0);
+		var count = skills.length;
 		var total = 2;
 		var full = (count === total);
 
 		var skillCheckBoxes = selectedSpecialization.skills.map(function(item) {
-			var status = (skills[item].spec === 1);
+			var status = (skills.indexOf(item) !== -1);
 			var disable = !status && full;
 
 			return (
@@ -431,7 +486,7 @@ var Specialization = React.createClass({displayName: "Specialization",
 					React.createElement("div", {className: "form-group"}, 
 						React.createElement("label", {htmlFor: "SpecializationSelect"}, "Name"), 
 						React.createElement("select", {className: "form-control input-sm", id: "SpecializationSelect", 
-								value: this.props.specialization, onChange: this.props.onSpecializationChange}, 
+								value: this.props.specialization.id, onChange: this.props.onSpecializationChange}, 
 							specializationOptions
 						)
 					), 
@@ -454,29 +509,36 @@ var Specialization = React.createClass({displayName: "Specialization",
 var AdditionalSpecializations = React.createClass({displayName: "AdditionalSpecializations",
 	render: function() {
 
-		var selectedCareer = this.props.career;
-		var selectedSpecialization = this.props.specialization;
-		var specs = this.props.specializations;
-		var addSpecs = this.props.additionalSpecializations;
+		var selectedCareer = this.props.character.career.id;
+		var selectedSpecialization = this.props.character.specialization.id;
+		var specs = this.props.master.specializations;
+		var addSpecs = this.props.character.additionalSpecializations;
 		var onClick = this.props.onClick;
 
-		var rows = this.props.careers.map(function(career, careerIndex) {
+		var xpLeft = xpBudget(this.props.master, this.props.character) -
+			xpSpent(this.props.master, this.props.character);
+
+		var rows = this.props.master.careers.map(function(career, careerIndex) {
 
 			var cells = career.specializations.map(function(specialization) {
+				var selected = (addSpecs.indexOf(specialization) !== -1);
+				var primarySpec = (specialization === selectedSpecialization);
+				var careerSpec = (careerIndex === selectedCareer);
+				var hasXp = (xpLeft >= (careerSpec ? (addSpecs.length + 1) * 10 : (addSpecs.length + 2) * 10))
 
 				var style = "btn btn-block btn-sm" // "btn-default";
-				var disable = false;
-				if (addSpecs.indexOf(specialization) !== -1) {
+				if (selected || primarySpec ) {
 					style += " active";
 				}
-				if (specialization === selectedSpecialization) {
-					style += " active";
-					disable = true;
-				}
-				if (careerIndex === selectedCareer) {
+				if (careerSpec) {
 					style += " btn-primary";
 				} else {
 					style += " btn-default";
+				}
+
+				var disable = false;
+				if (primarySpec || (!hasXp && !selected)) {
+					disable = true;
 				}
 
 				return (
@@ -506,10 +568,7 @@ var AdditionalSpecializations = React.createClass({displayName: "AdditionalSpeci
 					rows
 				), 
 				React.createElement("div", {className: "panel-footer"}, 
-					React.createElement("div", {className: "row"}, 
-						React.createElement("div", {className: "col-sm-3"}, "XP Spent:"), 
-						React.createElement("div", {className: "col-sm-9"}, React.createElement(XPBar, null))
-					)
+					"XP: ", React.createElement(XP, {master: this.props.master, character: this.props.character})
 				)
 			)
 		);
@@ -518,6 +577,29 @@ var AdditionalSpecializations = React.createClass({displayName: "AdditionalSpeci
 
 var Characteristics = React.createClass({displayName: "Characteristics",
 	render: function() {
+		
+		var dftChars = this.props.master.species[this.props.character.species].characteristics;
+		var chars = this.props.character.characteristics;
+		var onChange = this.props.onChange;
+
+		var xpLeft = xpBudget(this.props.master, this.props.character) -
+			xpSpent(this.props.master, this.props.character);
+
+		var charInputs = this.props.master.characteristics.map(function(item, index) {
+			var minValue = dftChars[index];
+			var maxValue = maxChar(chars[index], xpLeft);
+			
+			return (
+				React.createElement("div", {key: index, className: "col-sm-2"}, 
+					React.createElement("div", {className: "form-group"}, 
+						React.createElement("label", {htmlFor: "char-" + index}, item.name, " ", React.createElement("small", null, "[", item.abbr, "]")), 
+						React.createElement("input", {type: "number", className: "form-control input-lg", id: "char-" + index, defaultValue: minValue, 
+								min: minValue, max: maxValue, value: chars[index], onChange: onChange})
+					)
+				)
+			);
+		});
+
 		return (
 			React.createElement("div", {className: "panel panel-default"}, 
 				React.createElement("div", {className: "panel-heading"}, 
@@ -525,40 +607,12 @@ var Characteristics = React.createClass({displayName: "Characteristics",
 				), 
 				React.createElement("div", {className: "panel-body"}, 
 					React.createElement("div", {className: "row"}, 
-						React.createElement("div", {className: "col-sm-4"}, 
-							React.createElement(CharacteristicInput, {characteristic: this.props.characteristics[0]})
-						), 
-						React.createElement("div", {className: "col-sm-4"}, 
-							React.createElement(CharacteristicInput, {characteristic: this.props.characteristics[1]})
-						), 
-						React.createElement("div", {className: "col-sm-4"}, 
-							React.createElement(CharacteristicInput, {characteristic: this.props.characteristics[2]})
-						)
-					), 
-					React.createElement("div", {className: "row"}, 
-						React.createElement("div", {className: "col-sm-4"}, 
-							React.createElement(CharacteristicInput, {characteristic: this.props.characteristics[3]})
-						), 
-						React.createElement("div", {className: "col-sm-4"}, 
-							React.createElement(CharacteristicInput, {characteristic: this.props.characteristics[4]})
-						), 
-						React.createElement("div", {className: "col-sm-4"}, 
-							React.createElement(CharacteristicInput, {characteristic: this.props.characteristics[5]})
-						)
+						charInputs
 					)
+				), 
+				React.createElement("div", {className: "panel-footer"}, 
+					"XP: ", React.createElement(XP, {master: this.props.master, character: this.props.character})
 				)
-			)
-		);
-	}
-});
-
-var CharacteristicInput = React.createClass({displayName: "CharacteristicInput",
-	render: function() {
-		var chr = this.props.characteristic;
-		return (
-			React.createElement("div", {className: "form-group"}, 
-				React.createElement("label", {htmlFor: "{chr.abbr}"}, chr.name, " ", React.createElement("small", null, "[", chr.abbr, "]")), 
-				React.createElement("input", {type: "number", className: "form-control input-sm", id: "{chr.abbr}", min: "2", max: "5", defaultValue: "2"})
 			)
 		);
 	}
@@ -619,16 +673,13 @@ var Skills = React.createClass({displayName: "Skills",
 	}
 });
 
-var XPBar = React.createClass({displayName: "XPBar",
+var XP = React.createClass({displayName: "XP",
 	render: function() {
+		var xs = xpSpent(this.props.master, this.props.character);
+		var xb = xpBudget(this.props.master, this.props.character);
 
 		return (
-			React.createElement("div", {className: "progress"}, 
-				React.createElement("div", {className: "progress-bar progress-bar-info", role: "progressbar", style: {width: "10%"}}), 
-				React.createElement("div", {className: "progress-bar progress-bar-info", role: "progressbar", style: {width: "30%"}}), 
-				React.createElement("div", {className: "progress-bar progress-bar-danger", role: "progressbar", style: {width: "20%"}}), 
-				React.createElement("div", {className: "progress-bar progress-bar-info", role: "progressbar", style: {width: "20%"}})
-			)
+			React.createElement("span", null, " ", xs, " / ", xb, " ")
 		);
 	}
 });
