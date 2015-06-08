@@ -4,8 +4,6 @@
 //  helpers  //
 ///////////////
 
-var CHAR_PRICES = [0, 10, 30, 60, 100, 150];
-
 function xpBudget(master, character) {
 	var a = master.additionalObligations;
 	var x = master.species[character.species].xp;
@@ -18,7 +16,7 @@ function xpBudget(master, character) {
 
 function xpSpent(master, character) {
 		var specs = master.specializations;
-		var career = character.career.id;
+		var career = character.career;
 		var x = character.additionalSpecializations.reduce(function(prev, item, index) {
 			return prev + ((specs[item].career === career) ? (index + 1) * 10 : (index + 2) * 10);
 		}, 0);
@@ -29,15 +27,43 @@ function xpSpent(master, character) {
 			return (prev + (CHAR_PRICES[item] - CHAR_PRICES[startChars[index]]));
 		}, 0);
 		
+
+		x += master.skills.reduce(function(prev, item, index) {
+			var freeRank = (character.skills.species[index] || 0) +
+				(character.skills.career[index] || 0) +
+				(character.skills.spec[index] || 0);
+			var boughtRank = freeRank + (character.skills.bought[index] || 0);
+			var isCareer = (character.skills.career[index] !== undefined) || (character.skills.spec[index] !== undefined);
+
+			return prev + skillCost(boughtRank, isCareer) - skillCost(freeRank, isCareer);
+		}, 0);
+		
 		return x;
 }
 
+var CHAR_PRICES = [0, 10, 30, 60, 100, 150];
 function maxChar(current, xp) {
+	var budget = CHAR_PRICES[current] + xp;
 	var r = current;
-	while ((CHAR_PRICES[r] - CHAR_PRICES[current]) <= xp) {
-		r++;
-	}
+	while (CHAR_PRICES[r] <= budget) { r++; }
 	return (r - 1);
+}
+
+function skillCost(rank, isCareer) {
+	var result = 0;
+	for (var i = 1; i <= rank; i++) {
+		result += i * 5 + (isCareer ? 0 : 5)
+	}
+	return result;
+}
+
+function maxSkill(current, xp, isCareer) {
+	var budget = skillCost(current,  isCareer) + xp;
+	var r = current;
+
+	while (skillCost(r, isCareer) <= budget) { r++; }
+	return (r - 1);
+
 }
 
 /////////////////////
@@ -47,6 +73,7 @@ function maxChar(current, xp) {
 var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 
 	getInitialState: function() {
+		var skillCount = this.props.master.skills.length;
 		var state = {
 			name: '',
 			species: 3,
@@ -55,21 +82,30 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 				value: 10,
 				additional: [false, false, false, false]
 			},
-			career: {
-				id: 4,
-				skills: []
-			},
-			specialization: {
-				id: 12,
-				skills: []
-			},
+			career: 4,
+			specialization:12,
 			additionalSpecializations: [],
-			characteristics: [2, 2, 2, 2, 2, 2]
+			characteristics: [2, 2, 2, 2, 2, 2],
+			skills: {
+				species: new Array(skillCount),
+				career: new Array(skillCount),
+				spec: new Array(skillCount),
+				bought: new Array(skillCount)
+			}
 		};
 		
+		// species skills will be here
+		
+		this.props.master.careers[state.career].skills.forEach(function(item) {
+			state.skills.career[item] = 0;
+		});
+
+		this.props.master.specializations[state.specialization].skills.forEach(function(item) {
+			state.skills.spec[item] = 0;
+		});
+
 		return state;
 	},
-
 
 	//  ui events  //
 	
@@ -109,66 +145,162 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 	onCareerChange: function(event) {
 		var c = parseInt(event.target.value);
 		var sp = this.props.master.careers[c].specializations[0];
-		var s = React.addons.update(this.state, {
-			career: { id: { $set: c}, skills: {$set: []}},
-			specialization: { id: {$set: sp}, skills: {$set: []}}
+
+		var cs = [];
+		this.props.master.careers[c].skills.forEach(function(item) {
+			cs[item] = 0;
 		});
-		// remove spec from the additonal specs list
-		var i = this.state.additionalSpecializations.indexOf(sp);
+		
+		var ss = []
+		this.props.master.specializations[sp].skills.forEach(function(item) {
+			ss[item] = 0;
+		});
+
+		var addSpecs = this.state.additionalSpecializations;
+		var i = addSpecs.indexOf(sp);
 		if (i !== -1) {
-			s = React.addons.update(this.state, {additionalSpecializations: { $splice: [[i, 1]] }});
+			addSpecs = addSpecs.splice(i, 1);
 		}
+
+		addSpecs.forEach(function(spec) {
+			this.props.master.specializations[spec].skills.forEach(function(skill) {
+				ss[skill] = (ss[skill] || 0);
+			}, this);
+		}, this);
+
+		var s = React.addons.update(this.state, {
+			career: { $set: c},
+			specialization: { $set: sp},
+			additionalSpecializations: { $set: addSpecs},
+			skills: {
+				career: { $set: cs},
+				spec: { $set: ss}
+			}
+		});
+
 		this.setState(s);
 	},
 
 	onCareerSkillChange: function(event) {
 		var skill = parseInt(event.target.value);
-		var i = this.state.career.skills.indexOf(skill);
-		if (i === -1) {
-			var s = React.addons.update(this.state, {career: { skills: { $push: [skill] }}});
-		} else {
-			var s = React.addons.update(this.state, {career: { skills: { $splice: [[i, 1]] }}});
+		var v = (this.state.skills.career[skill] === 1 ? 0 : 1);
+
+		var s = React.addons.update(this.state, { skills: { career: { $splice: [[skill, 1, v]] }}});
+		
+		var total = (s.skills.species[skill] || 0) +
+			(s.skills.career[skill] || 0) +
+			(s.skills.spec[skill] || 0) +
+			(s.skills.bought[skill] || 0);
+
+		console.log(s.skills.species[skill] + ' + ' + s.skills.career[skill] + ' + ' +
+			s.skills.spec[skill] + ' + ' + s.skills.bought[skill]  + ' = ' + total);
+
+		if (total > 2) {
+			v = s.skills.bought[skill] - Math.min((total - 2), (s.skills.bought[skill] || 0));
+			s = React.addons.update(s, { skills: { bought: { $splice: [[skill, 1, v]] }}});
 		}
+
 		this.setState(s);
 	},
 
 	onSpecializationChange: function(event) {
 		var sp = parseInt(event.target.value);
-		var s = React.addons.update(this.state, {
-			specialization: { id: {$set: sp}, skills: {$set: []}}
+
+		var specSkills = []
+		this.props.master.specializations[sp].skills.forEach(function(item) {
+			specSkills[item] = 0;
 		});
-		// remove spec from the additonal specs list
-		var i = this.state.additionalSpecializations.indexOf(sp);
+
+		var addSpecs = this.state.additionalSpecializations;
+		var i = addSpecs.indexOf(sp);
 		if (i !== -1) {
-			s = React.addons.update(this.state, {additionalSpecializations: { $splice: [[i, 1]] }});
+			addSpecs = addSpecs.splice(i, 1);
 		}
+
+		addSpecs.forEach(function(spec) {
+			this.props.master.specializations[spec].skills.forEach(function(skill) {
+				ss[skill] = (ss[skill] || 0);
+			}, this);
+		}, this);
+
+		var s = React.addons.update(this.state, {
+			specialization: { $set: sp},
+			additionalSpecializations: { $set: addSpecs},
+			skills: {spec: { $set: specSkills}}
+		});
+
 		this.setState(s);
 	},
 
 	onSpecSkillChange: function(event) {
 		var skill = parseInt(event.target.value);
-		var i = this.state.specialization.skills.indexOf(skill);
-		if (i === -1) {
-			var s = React.addons.update(this.state, {specialization: { skills: { $push: [skill] }}});
-		} else {
-			var s = React.addons.update(this.state, {specialization: { skills: { $splice: [[i, 1]] }}});
+		var v = (this.state.skills.spec[skill] === 1 ? 0 : 1);
+		var s = React.addons.update(this.state, { skills: { spec: { $splice: [[skill, 1, v]] }}});
+
+		var total = (s.skills.species[skill] || 0) +
+			(s.skills.career[skill] || 0) +
+			(s.skills.spec[skill] || 0) +
+			(s.skills.bought[skill] || 0);
+
+		console.log(s.skills.species[skill] + ' + ' + s.skills.career[skill] + ' + ' +
+			s.skills.spec[skill] + ' + ' + s.skills.bought[skill]  + ' = ' + total);
+
+		if (total > 2) {
+			v = s.skills.bought[skill] - Math.min((total - 2), (s.skills.bought[skill] || 0));
+			s = React.addons.update(s, { skills: { bought: { $splice: [[skill, 1, v]] }}});
 		}
+
 		this.setState(s);
 	},
 
 	onAdditionalSpecializationClick: function(event) {
 		var sp = parseInt(event.target.value);
 		var i = this.state.additionalSpecializations.indexOf(sp);
+		var ss = this.state.skills.spec.slice();
+
 		if (i === -1) {
-			var s = React.addons.update(this.state, {additionalSpecializations: { $push: [sp] }});
+			this.props.master.specializations[sp].skills.forEach(function(skill) {
+				ss[skill] = (ss[skill] || 0);
+			}, this);
+
+			var s = React.addons.update(this.state, {
+				additionalSpecializations: { $push: [sp] },
+				skills: { spec: { $set: ss }}
+			});
+
 		} else {
-			var s = React.addons.update(this.state, {additionalSpecializations: { $splice: [[i, 1]] }});
+			var s = React.addons.update(this.state, { additionalSpecializations: { $splice: [[i, 1]] }});
+
+			// build the valid spec skill list
+			var except = [];
+			this.props.master.specializations[s.specialization].skills.forEach(function(skill) {
+				if (except.indexOf(skill) === -1) {
+					except.push(skill);
+				}
+			});
+			s.additionalSpecializations.forEach(function(spec) {
+				this.props.master.specializations[spec].skills.forEach(function(skill) {
+					if (except.indexOf(skill) === -1) {
+						except.push(skill);
+					}
+				}, this);
+			}, this);
+
+			// remove spec skills not in the list
+			ss.forEach(function(item, index) {
+				if (except.indexOf(index) === -1) {
+					delete ss[index];
+				}
+			});
+
+			s = React.addons.update(s, { skills: { spec: { $set: ss }}});
 		}
+		
 		this.setState(s);
 	},
 
 	onCharacteristicChange: function(event) {
-		var i = parseInt(event.target.id.substring(5,6));
+		var i = parseInt(event.target.id);
 		var v = parseInt(event.target.value);
 		var min = parseInt(event.target.min);
 		var max = parseInt(event.target.max);
@@ -176,7 +308,25 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 		if (isNaN(v) || v > max || v < min) {
 			return false;
 		}
+
 		var s = React.addons.update(this.state, { characteristics: { $splice: [[i, 1, v]] }});
+
+		this.setState(s);
+	},
+
+	onSkillChange: function(event) {
+		var i = parseInt(event.target.id);
+		var total = parseInt(event.target.value);
+		var min = parseInt(event.target.min);
+		var max = parseInt(event.target.max);
+
+		if (isNaN(total) || total > max || total < min) {
+			return false;
+		}
+		var skills = this.state.skills;
+		var v = total - (skills.species[i] || 0) - (skills.career[i] || 0) - (skills.spec[i] || 0);
+		var s = React.addons.update(this.state, { skills: { bought: { $splice: [[i, 1, v]] }}});
+
 		this.setState(s);
 	},
 
@@ -254,14 +404,16 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 								React.createElement(Career, {
 										master: this.props.master, 
 										career: this.state.career, 
+										careerSkills: this.state.skills.career, 
 										onCareerChange: this.onCareerChange, 
 										onCareerSkillChange: this.onCareerSkillChange})
 							), 
 							React.createElement("div", {className: "col-sm-6"}, 
 								React.createElement(Specialization, {
 										master: this.props.master, 
-										careerId: this.state.career.id, 
+										career: this.state.career, 
 										specialization: this.state.specialization, 
+										specSkills: this.state.skills.spec, 
 										onSpecializationChange: this.onSpecializationChange, 
 										onSpecSkillChange: this.onSpecSkillChange})
 							)
@@ -284,8 +436,22 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 						), 
 						React.createElement("div", {className: "row navigator", id: "skills"}, 
 							React.createElement("div", {className: "col-xs-12"}, 
-								React.createElement(Skills, {skills: this.props.master.skills, 
-									characteristics: this.props.master.characteristics})
+								React.createElement(Skills, {
+										master: this.props.master, 
+										character: this.state, 
+										onChange: this.onSkillChange})
+							)
+						), 
+						React.createElement("div", {className: "row navigator", id: "talents"}, 
+							React.createElement("div", {className: "col-xs-12"}, 
+								React.createElement("div", {className: "panel panel-default"}, 
+									React.createElement("div", {className: "panel-heading"}, 
+										React.createElement("h3", {className: "panel-title"}, " Talents ")
+									), 
+									React.createElement("div", {className: "panel-body"}, 
+										React.createElement("em", null, "Coming soon!")
+									)
+								)
 							)
 						), 
 						React.createElement("div", {className: "row navigator", id: "equipment"}, 
@@ -295,7 +461,7 @@ var CharacterGenerator = React.createClass({displayName: "CharacterGenerator",
 										React.createElement("h3", {className: "panel-title"}, " Equipment ")
 									), 
 									React.createElement("div", {className: "panel-body"}, 
-										"Equipment"
+										React.createElement("em", null, "Coming soon!")
 									)
 								)
 							)
@@ -388,30 +554,27 @@ var Career = React.createClass({displayName: "Career",
 			);
 		});
 
-		var skillList = this.props.master.skills;
-		var skills = this.props.career.skills;
-		var selectedCareer = this.props.master.careers[this.props.career.id];
-		var onChange = this.props.onCareerSkillChange;
-
-		var count = skills.length;
+		var count = this.props.careerSkills.reduce(function(prev, item) {
+			return prev + item;
+		}, 0);
 		var total = 4;
-		var full = (count === total);
-
+		
+		var selectedCareer = this.props.master.careers[this.props.career];
 		var skillCheckBoxes = selectedCareer.skills.map(function(item) {
-			var status = (skills.indexOf(item) !== -1);
-			var disable = !status && full;
+			var status = (this.props.careerSkills[item] === 1);
+			var disable = !status && (count === total);
 
 			return (
 				React.createElement("div", {key: item, className: disable ? "checkbox disabled" : "checkbox"}, 
 					React.createElement("label", null, 
 						React.createElement("input", {type: "checkbox", value: item, 
 								checked: status, disabled: disable, 
-								onChange: onChange}), 
-						skillList[item].name
+								onChange: this.props.onCareerSkillChange}), 
+						this.props.master.skills[item].name
 					)
 				)
 			);
-		});
+		}, this);
 
 		return (
 			React.createElement("div", {className: "panel panel-default"}, 
@@ -422,7 +585,7 @@ var Career = React.createClass({displayName: "Career",
 					React.createElement("div", {className: "form-group"}, 
 						React.createElement("label", {htmlFor: "CareerSelect"}, "Name"), 
 						React.createElement("select", {className: "form-control input-sm", id: "CareerSelect", 
-								value: this.props.career.id, onChange: this.props.onCareerChange}, 
+								value: this.props.career, onChange: this.props.onCareerChange}, 
 							careerOptions
 						)
 					), 
@@ -443,39 +606,35 @@ var Career = React.createClass({displayName: "Career",
 
 var Specialization = React.createClass({displayName: "Specialization",
 	render: function() {
-		var selectedCareer = this.props.master.careers[this.props.careerId];
-		var specs = this.props.master.specializations;
-
-		var specializationOptions	= selectedCareer.specializations.map(function(item) {
+		
+		var specializationOptions	= this.props.master.careers[this.props.career].specializations.map(function(item) {
 			return (
-				React.createElement("option", {key: item, value: item}, specs[item].name)
+				React.createElement("option", {key: item, value: item}, this.props.master.specializations[item].name)
 			);
-		});
+		}, this);
 
-		var skillList = this.props.master.skills;
-		var skills = this.props.specialization.skills;
-		var selectedSpecialization = this.props.master.specializations[this.props.specialization.id];
-		var onChange = this.props.onSpecSkillChange;
-
-		var count = skills.length;
+		
+		var count = this.props.specSkills.reduce(function(prev, item) {
+			return prev + item;
+		}, 0);
 		var total = 2;
-		var full = (count === total);
 
+		var selectedSpecialization = this.props.master.specializations[this.props.specialization];
 		var skillCheckBoxes = selectedSpecialization.skills.map(function(item) {
-			var status = (skills.indexOf(item) !== -1);
-			var disable = !status && full;
+			var status = (this.props.specSkills[item] === 1);
+			var disable = !status && (count === total);
 
 			return (
 				React.createElement("div", {key: item, className: disable ? "checkbox disabled" : "checkbox"}, 
 					React.createElement("label", null, 
 						React.createElement("input", {type: "checkbox", value: item, 
 								checked: status, disabled: disable, 
-								onChange: onChange}), 
-						skillList[item].name
+								onChange: this.props.onSpecSkillChange}), 
+						this.props.master.skills[item].name
 					)
 				)
 			);
-		});
+		}, this);
 
 		return (
 			React.createElement("div", {className: "panel panel-default"}, 
@@ -486,7 +645,7 @@ var Specialization = React.createClass({displayName: "Specialization",
 					React.createElement("div", {className: "form-group"}, 
 						React.createElement("label", {htmlFor: "SpecializationSelect"}, "Name"), 
 						React.createElement("select", {className: "form-control input-sm", id: "SpecializationSelect", 
-								value: this.props.specialization.id, onChange: this.props.onSpecializationChange}, 
+								value: this.props.specialization, onChange: this.props.onSpecializationChange}, 
 							specializationOptions
 						)
 					), 
@@ -509,11 +668,9 @@ var Specialization = React.createClass({displayName: "Specialization",
 var AdditionalSpecializations = React.createClass({displayName: "AdditionalSpecializations",
 	render: function() {
 
-		var selectedCareer = this.props.character.career.id;
-		var selectedSpecialization = this.props.character.specialization.id;
-		var specs = this.props.master.specializations;
+		var selectedCareer = this.props.character.career;
+		var selectedSpecialization = this.props.character.specialization;
 		var addSpecs = this.props.character.additionalSpecializations;
-		var onClick = this.props.onClick;
 
 		var xpLeft = xpBudget(this.props.master, this.props.character) -
 			xpSpent(this.props.master, this.props.character);
@@ -543,13 +700,13 @@ var AdditionalSpecializations = React.createClass({displayName: "AdditionalSpeci
 
 				return (
 					React.createElement("div", {key: specialization, className: "col-sm-3"}, 
-						React.createElement("button", {type: "button", value: specialization, className: style, disabled: disable, 
-								onClick: onClick}, 
-							specs[specialization].name
+						React.createElement("button", {type: "button", className: style, disabled: disable, 
+								value: specialization, onClick: this.props.onClick}, 
+							this.props.master.specializations[specialization].name
 						)
 					)
 				);
-			});
+			}, this);
 
 			return (
 				React.createElement("div", {key: careerIndex, className: "row"}, 
@@ -557,7 +714,7 @@ var AdditionalSpecializations = React.createClass({displayName: "AdditionalSpeci
 					cells
 				)
 			);
-		});
+		}, this);
 
 		return (
 			React.createElement("div", {className: "panel panel-default"}, 
@@ -592,8 +749,8 @@ var Characteristics = React.createClass({displayName: "Characteristics",
 			return (
 				React.createElement("div", {key: index, className: "col-sm-2"}, 
 					React.createElement("div", {className: "form-group"}, 
-						React.createElement("label", {htmlFor: "char-" + index}, item.name, " ", React.createElement("small", null, "[", item.abbr, "]")), 
-						React.createElement("input", {type: "number", className: "form-control input-lg", id: "char-" + index, defaultValue: minValue, 
+						React.createElement("label", null, item.name, " ", React.createElement("small", null, "[", item.abbr, "]")), 
+						React.createElement("input", {type: "number", className: "form-control input-lg", id: index, defaultValue: minValue, 
 								min: minValue, max: maxValue, value: chars[index], onChange: onChange})
 					)
 				)
@@ -620,44 +777,72 @@ var Characteristics = React.createClass({displayName: "Characteristics",
 
 var Skills = React.createClass({displayName: "Skills",
 	render: function() {
-		var chars = this.props.characteristics;
+
 		var COLS = 2;
+
 		var width = 12 / COLS;
-		var allSkills = [];
-		for (var i = 0; i < COLS; i++) {
-			var skills = this.props.skills.
-				filter(function(item, index) { return (index % COLS === i); }).
-				map(function(item, index) {
-					return (
-						React.createElement("tr", {key: index}, 
-							React.createElement("td", null, item.name, " ", React.createElement("small", null, "[", chars[item.chr].abbr, "]"), " "), 
-							React.createElement("td", null, 
-								React.createElement("input", {type: "number", 
-									className: "form-control input-sm input-sm", 
-									id: 'skill-' + index, 
-									min: "0", max: "5", defaultValue: "0"})
-							), 
-							React.createElement("td", null, " YGG ")
-						)
-					);
-			});
-			allSkills.push(
-				React.createElement("div", {key: i, className: 'col-sm-' + width}, 
-					React.createElement("table", {className: "table table-condensed form-horizontal"}, 
-						React.createElement("thead", null, 
-							React.createElement("tr", null, 
-								React.createElement("th", null, "Skill ", React.createElement("small", null, "[Char.]"), " "), 
-								React.createElement("th", null, "Value"), 
-								React.createElement("th", null, "Roll")
-							)
-						), 
-						React.createElement("tbody", null, 
-							skills
+		var skills = this.props.master.skills;
+		var chars = this.props.master.characteristics;
+		var charSkills = this.props.character.skills;
+		
+		var xpLeft = xpBudget(this.props.master, this.props.character) -
+			xpSpent(this.props.master, this.props.character);
+
+		var rows = [];
+		for (var i = 0; i < COLS; i++) { rows[i]=[]; }
+
+		this.props.master.skills.map(function(item, index) {
+			
+			var minValue = (charSkills.species[index] || 0) +
+				(charSkills.career[index] || 0) +
+				(charSkills.spec[index] || 0);
+			var value = minValue + (charSkills.bought[index] || 0);
+			var isCareer = (charSkills.career[index] !== undefined) || (charSkills.spec[index] !== undefined);
+			var maxValue = Math.min(maxSkill(value, xpLeft, isCareer), 2);
+
+			var characteristic = this.props.character.characteristics[item.chr];
+			var yellow = Math.min(value, characteristic);
+			var green = Math.max(value, characteristic) - yellow;
+			var dice = '\u25A0';
+
+			rows[(index % COLS)].push(
+				React.createElement("tr", {key: index, className: (isCareer ? 'info' : '')}, 
+					React.createElement("td", null, item.name, " ", React.createElement("small", null, "[", chars[item.chr].abbr, "]")), 
+					React.createElement("td", null, 
+						React.createElement("input", {type: "number", 
+								className: "form-control input-sm input-sm", 
+								id: index, min: minValue, max: maxValue, 
+								value: value, onChange: this.props.onChange})
+					), 
+					React.createElement("td", null, 
+						React.createElement("span", {style: {fontSize: 'large'}}, 
+							React.createElement("span", {style: {color: 'yellow'}}, dice.repeat(yellow)), 
+							React.createElement("span", {style: {color: 'green'}}, dice.repeat(green))
 						)
 					)
 				)
 			);
-		}
+		}, this);
+
+		var columns = rows.map(function(item, index) {
+			return (
+				React.createElement("div", {key: index, className: 'col-sm-' + width}, 
+					React.createElement("table", {className: "table table-condensed form-horizontal"}, 
+						React.createElement("thead", null, 
+							React.createElement("tr", null, 
+								React.createElement("th", {className: "col-sm-6"}, "Skill ", React.createElement("small", null, "[Char.]"), " "), 
+								React.createElement("th", {className: "col-sm-3"}, "Value"), 
+								React.createElement("th", {className: "col-sm-3"}, "Roll")
+							)
+						), 
+						React.createElement("tbody", null, 
+							item
+						)
+					)
+				)
+			);
+		}, this);
+
 		return (
 			React.createElement("div", {className: "panel panel-default"}, 
 				React.createElement("div", {className: "panel-heading"}, 
@@ -665,8 +850,11 @@ var Skills = React.createClass({displayName: "Skills",
 				), 
 				React.createElement("div", {className: "panel-body"}, 
 					React.createElement("div", {className: "row"}, 
-						allSkills
+						columns
 					)
+				), 
+				React.createElement("div", {className: "panel-footer"}, 
+					"XP: ", React.createElement(XP, {master: this.props.master, character: this.props.character})
 				)
 			)
 		);

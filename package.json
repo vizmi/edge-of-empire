@@ -30,6 +30,6 @@
 		"start": "@start \"server\" /MIN node web.js",
 		"prod": "npm run jsx && npm run lint && npm run ugly && npm run rename:prod && npm run start",
 		"build": "npm run jsx && npm run start && REM npm run rename:dev",
-		"deploy": "dcapp edgeofempire/default deploy && dcapp edgeofempire/default push"
+		"deploy": "dcapp edgeofempire/default push && dcapp edgeofempire/default deploy"
 	}
 }
