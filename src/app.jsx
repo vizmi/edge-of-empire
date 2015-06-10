@@ -87,23 +87,13 @@ var CharacterGenerator = React.createClass({
 			additionalSpecializations: [],
 			characteristics: [2, 2, 2, 2, 2, 2],
 			skills: {
-				species: new Array(skillCount),
-				career: new Array(skillCount),
-				spec: new Array(skillCount),
-				bought: new Array(skillCount)
+				species: [],
+				career: [],
+				spec: [],
+				bought: []
 			}
 		};
 		
-		// species skills will be here
-		
-		this.props.master.careers[state.career].skills.forEach(function(item) {
-			state.skills.career[item] = 0;
-		});
-
-		this.props.master.specializations[state.specialization].skills.forEach(function(item) {
-			state.skills.spec[item] = 0;
-		});
-
 		return state;
 	},
 
@@ -146,35 +136,19 @@ var CharacterGenerator = React.createClass({
 		var c = parseInt(event.target.value);
 		var sp = this.props.master.careers[c].specializations[0];
 
-		var cs = [];
-		this.props.master.careers[c].skills.forEach(function(item) {
-			cs[item] = 0;
-		});
-		
-		var ss = []
-		this.props.master.specializations[sp].skills.forEach(function(item) {
-			ss[item] = 0;
-		});
-
 		var addSpecs = this.state.additionalSpecializations;
 		var i = addSpecs.indexOf(sp);
 		if (i !== -1) {
 			addSpecs = addSpecs.splice(i, 1);
 		}
 
-		addSpecs.forEach(function(spec) {
-			this.props.master.specializations[spec].skills.forEach(function(skill) {
-				ss[skill] = (ss[skill] || 0);
-			}, this);
-		}, this);
-
 		var s = React.addons.update(this.state, {
 			career: { $set: c},
 			specialization: { $set: sp},
 			additionalSpecializations: { $set: addSpecs},
 			skills: {
-				career: { $set: cs},
-				spec: { $set: ss}
+				career: { $set: [] },
+				spec: { $set: [] }
 			}
 		});
 
@@ -183,20 +157,19 @@ var CharacterGenerator = React.createClass({
 
 	onCareerSkillChange: function(event) {
 		var skill = parseInt(event.target.value);
-		var v = (this.state.skills.career[skill] === 1 ? 0 : 1);
-
-		var s = React.addons.update(this.state, { skills: { career: { $splice: [[skill, 1, v]] }}});
+		if (this.state.skills.career[skill] === 1) {
+			var s = React.addons.update(this.state, { skills: { career: { $splice: [[skill, 1]] }}});
+		} else {
+			var s = React.addons.update(this.state, { skills: { career: { $splice: [[skill, 1, 1]] }}});
+		}
 		
 		var total = (s.skills.species[skill] || 0) +
 			(s.skills.career[skill] || 0) +
 			(s.skills.spec[skill] || 0) +
 			(s.skills.bought[skill] || 0);
 
-		console.log(s.skills.species[skill] + ' + ' + s.skills.career[skill] + ' + ' +
-			s.skills.spec[skill] + ' + ' + s.skills.bought[skill]  + ' = ' + total);
-
 		if (total > 2) {
-			v = s.skills.bought[skill] - Math.min((total - 2), (s.skills.bought[skill] || 0));
+			var v = s.skills.bought[skill] - Math.min((total - 2), (s.skills.bought[skill] || 0));
 			s = React.addons.update(s, { skills: { bought: { $splice: [[skill, 1, v]] }}});
 		}
 
@@ -206,27 +179,16 @@ var CharacterGenerator = React.createClass({
 	onSpecializationChange: function(event) {
 		var sp = parseInt(event.target.value);
 
-		var specSkills = []
-		this.props.master.specializations[sp].skills.forEach(function(item) {
-			specSkills[item] = 0;
-		});
-
 		var addSpecs = this.state.additionalSpecializations;
 		var i = addSpecs.indexOf(sp);
 		if (i !== -1) {
 			addSpecs = addSpecs.splice(i, 1);
 		}
 
-		addSpecs.forEach(function(spec) {
-			this.props.master.specializations[spec].skills.forEach(function(skill) {
-				ss[skill] = (ss[skill] || 0);
-			}, this);
-		}, this);
-
 		var s = React.addons.update(this.state, {
 			specialization: { $set: sp},
 			additionalSpecializations: { $set: addSpecs},
-			skills: {spec: { $set: specSkills}}
+			skills: {spec: { $set: [] }}
 		});
 
 		this.setState(s);
@@ -234,16 +196,16 @@ var CharacterGenerator = React.createClass({
 
 	onSpecSkillChange: function(event) {
 		var skill = parseInt(event.target.value);
-		var v = (this.state.skills.spec[skill] === 1 ? 0 : 1);
-		var s = React.addons.update(this.state, { skills: { spec: { $splice: [[skill, 1, v]] }}});
+		if (this.state.skills.spec[skill] === 1) {
+			var s = React.addons.update(this.state, { skills: { spec: { $splice: [[skill, 1]] }}});
+		} else {
+			var s = React.addons.update(this.state, { skills: { spec: { $splice: [[skill, 1, 1]] }}});
+		}
 
 		var total = (s.skills.species[skill] || 0) +
 			(s.skills.career[skill] || 0) +
 			(s.skills.spec[skill] || 0) +
 			(s.skills.bought[skill] || 0);
-
-		console.log(s.skills.species[skill] + ' + ' + s.skills.career[skill] + ' + ' +
-			s.skills.spec[skill] + ' + ' + s.skills.bought[skill]  + ' = ' + total);
 
 		if (total > 2) {
 			v = s.skills.bought[skill] - Math.min((total - 2), (s.skills.bought[skill] || 0));
@@ -256,44 +218,11 @@ var CharacterGenerator = React.createClass({
 	onAdditionalSpecializationClick: function(event) {
 		var sp = parseInt(event.target.value);
 		var i = this.state.additionalSpecializations.indexOf(sp);
-		var ss = this.state.skills.spec.slice();
 
 		if (i === -1) {
-			this.props.master.specializations[sp].skills.forEach(function(skill) {
-				ss[skill] = (ss[skill] || 0);
-			}, this);
-
-			var s = React.addons.update(this.state, {
-				additionalSpecializations: { $push: [sp] },
-				skills: { spec: { $set: ss }}
-			});
-
+			var s = React.addons.update(this.state, { additionalSpecializations: { $push: [sp] }});
 		} else {
 			var s = React.addons.update(this.state, { additionalSpecializations: { $splice: [[i, 1]] }});
-
-			// build the valid spec skill list
-			var except = [];
-			this.props.master.specializations[s.specialization].skills.forEach(function(skill) {
-				if (except.indexOf(skill) === -1) {
-					except.push(skill);
-				}
-			});
-			s.additionalSpecializations.forEach(function(spec) {
-				this.props.master.specializations[spec].skills.forEach(function(skill) {
-					if (except.indexOf(skill) === -1) {
-						except.push(skill);
-					}
-				}, this);
-			}, this);
-
-			// remove spec skills not in the list
-			ss.forEach(function(item, index) {
-				if (except.indexOf(index) === -1) {
-					delete ss[index];
-				}
-			});
-
-			s = React.addons.update(s, { skills: { spec: { $set: ss }}});
 		}
 		
 		this.setState(s);
@@ -781,15 +710,23 @@ var Skills = React.createClass({
 		var COLS = 2;
 
 		var width = 12 / COLS;
-		var skills = this.props.master.skills;
-		var chars = this.props.master.characteristics;
 		var charSkills = this.props.character.skills;
 		
 		var xpLeft = xpBudget(this.props.master, this.props.character) -
 			xpSpent(this.props.master, this.props.character);
 
 		var rows = [];
-		for (var i = 0; i < COLS; i++) { rows[i]=[]; }
+		for (var i = 0; i < COLS; i++) {
+			rows[i]=[];
+		}
+
+		var careerSkills = this.props.master.careers[this.props.character.career].skills.concat(
+			this.props.master.specializations[this.props.character.specialization].skills);
+		careerSkills = careerSkills.concat.apply(careerSkills,
+			this.props.character.additionalSpecializations.map(function(item, index) {
+				return this.props.specializations[item].skills;
+			}, this));
+		console.log(JSON.stringify(careerSkills));
 
 		this.props.master.skills.map(function(item, index) {
 			
@@ -797,7 +734,7 @@ var Skills = React.createClass({
 				(charSkills.career[index] || 0) +
 				(charSkills.spec[index] || 0);
 			var value = minValue + (charSkills.bought[index] || 0);
-			var isCareer = (charSkills.career[index] !== undefined) || (charSkills.spec[index] !== undefined);
+			var isCareer = (careerSkills.indexOf(index) !== -1);
 			var maxValue = Math.min(maxSkill(value, xpLeft, isCareer), 2);
 
 			var characteristic = this.props.character.characteristics[item.chr];
@@ -807,7 +744,7 @@ var Skills = React.createClass({
 
 			rows[(index % COLS)].push(
 				<tr key={index} className={(isCareer ? 'info' : '')}>
-					<td>{item.name} <small>[{chars[item.chr].abbr}]</small></td>
+					<td>{item.name} <small>[{characteristic.abbr}]</small></td>
 					<td>
 						<input type="number"
 								className="form-control input-sm input-sm"
